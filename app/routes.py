@@ -55,7 +55,7 @@ def login():
 @app.route('/post', methods=['GET', 'POST'])
 @login_required
 def post():
-    form=PostForm()
+    form = PostForm()
     if form.validate_on_submit():
         post = Post(body=form.post.data, author=current_user, upvotes=0)
         db.session.add(post)
@@ -73,14 +73,16 @@ def logout():
 
 @app.route('/ulk')
 def ulk():
+    p1 = request.args.get('p1', type=int)
     ppp = request.args.get('p', type=int)
+
     lpost = Post.query.filter_by(id=ppp).first()
     if lpost.upvotes is None:
         lpost.upvotes = 1
     else:
         lpost.upvotes += 1
     db.session.commit()
-    return jsonify(result=ppp)
+    return jsonify(result=p1)
 
 @app.route('/profile')
 def profile():

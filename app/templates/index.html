@@ -3,7 +3,7 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script type=text/javascript>
   $(function() {
-    $('a#like').bind('click', function() {
+    $('a#like').one('click', function() {
 
       $.getJSON('/ulk', {
         p: pid
@@ -55,10 +55,6 @@
  <script type=text/javascript>
  function myF1() {
     $( "#" + pid ).text(pvts + ' Likes');
-
-    $('#' + pid).on('click', function() {
-    $(this).prop('disabled', true);
-});
  }
 </script>
 
