@@ -3,7 +3,11 @@ from flask import render_template, flash, redirect, url_for, request, Markup, js
 from app.forms import RegistrationForm, LoginForm, PostForm
 from flask_login import current_user, login_user, logout_user, login_required
 from app.models import User, Post
+from app.token import generate_confirmation_token, confirm_token
+from app.email import send_email
 from werkzeug.urls import url_parse
+
+rdrd = False
 
 @app.route('/')
 def index():
@@ -19,20 +23,64 @@ def register():
 
     form = RegistrationForm()
     if form.validate_on_submit():
-        user = User(username=form.username.data, email=form.email.data)
+        user = User(username=form.username.data, email=form.email.data, cnf=False)
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
-        flash(Markup('Congratulations, you are now a registered user! Please <a href="/login" class="alert-link">login</a>'))
-        # flash(Markup('Your post is now <a href="/" class="alert-link">live</a>!'))
-        return redirect(url_for('index'))
+        token = generate_confirmation_token(user.email)
+        confirm_url = url_for('confirm_email', token=token, _external=True)
+        html = render_template('confirm.html', confirm_url=confirm_url)
+        subject = "Please confirm your email"
+        send_email(user.email, subject, html)
+
+        login_user(user)
+        flash('A confirmation email has been sent to your inbox.', 'success')
+        return redirect(url_for("index"))
+
+        # flash(Markup('Congratulations, you are now a registered user! Please <a href="/login" class="alert-link">login</a>'))
+        # return redirect(url_for('activate', rdrd=True))
 
     return render_template('register.html', title='Register', form=form)
+
+
+@app.route('/confirm')
+def confirm():
+    confirm_url = url_for('confirm')
+    return render_template('/confirm.html', title='Confirm email', confirm_url=confirm_url)
+
+
+@app.route('/activate')
+def activate():
+    rdrd = request.args.get('rdrd')
+    if rdrd:
+        return render_template('/activate.html', title='Activate account')
+    else:
+        return "Access prohibited!"
+
+
+@app.route('/confirm/<token>')
+@login_required
+def confirm_email(token):
+    try:
+        email = confirm_token(token)
+    except:
+        flash('The confirmation link is invalid or has expired.', 'danger')
+    user = User.query.filter_by(email=email).first_or_404()
+    if user.cnf:
+        flash('Account already confirmed. Please login.', 'success')
+    else:
+        user.cnf = True
+        db.session.add(user)
+        db.session.commit()
+        flash('You have confirmed your account. Thanks!', 'success')
+        return redirect(url_for('login'))
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        flash('You are logged-in already')
+        flash('You are logged-in')
+        return redirect(url_for('index'))
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
@@ -83,6 +131,7 @@ def ulk():
         lpost.upvotes += 1
     db.session.commit()
     return jsonify(result=p1)
+
 
 @app.route('/profile')
 def profile():

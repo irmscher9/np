@@ -23,7 +23,13 @@
 {% block app_content %}
 
     {% if current_user.is_authenticated %}
-    <p>Hello, {{ current_user.username }}!</p>
+    <p>Hello, {{ current_user.username }}!
+    {% if current_user.cnf %}
+
+        {% else %}
+        <b>You must confirm your account in order to activate it. Please check your inbox.</b>
+        {% endif %}
+    </p>
     {% else %}
     <p>Hello, user! You can
     <a href="{{ url_for('login') }}">Login</a>
@@ -32,6 +38,7 @@
     </p>
     {% endif %}
 
+<br/>
 <h2>Blog posts:</h2>
 
 {% for p in posts %}
