@@ -30,3 +30,14 @@ class RegistrationForm(FlaskForm):
 class PostForm(FlaskForm):
     post = TextAreaField('Say something', validators=[DataRequired(), Length(min=1, max=140)])
     submit = SubmitField('Submit')
+
+
+class ForgotPassword(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    submit = SubmitField('Submit')
+
+
+class NewPassword(FlaskForm):
+    new_pass = PasswordField('Password', validators=[DataRequired()])
+    new_pass2 = PasswordField('Repeat Password', validators=[DataRequired(), EqualTo('new_pass')])
+    submit = SubmitField('Submit')

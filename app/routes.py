@@ -1,13 +1,12 @@
 from app import app, db
 from flask import render_template, flash, redirect, url_for, request, Markup, jsonify
-from app.forms import RegistrationForm, LoginForm, PostForm
-from flask_login import current_user, login_user, logout_user, login_required
 from app.models import User, Post
+from app.forms import RegistrationForm, LoginForm, PostForm, ForgotPassword, NewPassword
+from flask_login import current_user, login_user, logout_user, login_required
 from app.token import generate_confirmation_token, confirm_token
 from app.email import send_email
 from werkzeug.urls import url_parse
 
-rdrd = False
 
 @app.route('/')
 def index():
@@ -29,7 +28,7 @@ def register():
         db.session.commit()
         token = generate_confirmation_token(user.email)
         confirm_url = url_for('confirm_email', token=token, _external=True)
-        html = render_template('confirm.html', confirm_url=confirm_url)
+        html = render_template('emails/confirm_email_email.html', confirm_url=confirm_url)
         subject = "Please confirm your email"
         send_email(user.email, subject, html)
 
@@ -37,25 +36,13 @@ def register():
         flash('A confirmation email has been sent to your inbox.', 'success')
         return redirect(url_for("index"))
 
-        # flash(Markup('Congratulations, you are now a registered user! Please <a href="/login" class="alert-link">login</a>'))
-        # return redirect(url_for('activate', rdrd=True))
-
     return render_template('register.html', title='Register', form=form)
 
 
 @app.route('/confirm')
 def confirm():
     confirm_url = url_for('confirm')
-    return render_template('/confirm.html', title='Confirm email', confirm_url=confirm_url)
-
-
-@app.route('/activate')
-def activate():
-    rdrd = request.args.get('rdrd')
-    if rdrd:
-        return render_template('/activate.html', title='Activate account')
-    else:
-        return "Access prohibited!"
+    return render_template('/emails/confirm_email_email.html', title='Confirm email', confirm_url=confirm_url)
 
 
 @app.route('/confirm/<token>')
@@ -70,10 +57,63 @@ def confirm_email(token):
         flash('Account already confirmed. Please login.', 'success')
     else:
         user.cnf = True
-        db.session.add(user)
+        # db.session.add(user)
         db.session.commit()
-        flash('You have confirmed your account. Thanks!', 'success')
+        flash('You have confirmed your account. Congratulations, you are now a registered user!', 'success')
         return redirect(url_for('login'))
+
+
+@app.route('/forgot', methods=['GET', 'POST'])
+def forgot():
+    form = ForgotPassword()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user:
+            flash('Recovery email has been sent to your inbox!', 'success')
+            token = generate_confirmation_token(user.email)
+            confirm_url = url_for('recovery_password', token=token, _external=True)
+            html = render_template('emails/recover_password_email.html', confirm_url=confirm_url)
+            subject = "Recover your password"
+            send_email(user.email, subject, html)
+        else:
+            flash('No user found with this email. Try again.', 'danger')
+
+    return render_template('forgot.html', title='Forgot password', form=form)
+
+
+@app.route('/recover/<token>')
+def recovery_password(token):
+    try:
+        email = confirm_token(token)
+    except:
+        flash('The recovery link is invalid or has expired.', 'danger')
+
+    user = User.query.filter_by(email=email).first()
+
+    if user:
+        # newpass = '321'
+        # user.set_password(newpass)
+        # db.session.commit()
+        # flash('Your new temporary password is "321"', 'success')
+        return redirect(url_for('new_password', email=email))
+
+
+@app.route('/profile/newpassword', methods=['GET', 'POST'])
+def new_password():
+    form = NewPassword()
+    email = request.args.get('email')
+    if form.validate_on_submit():
+        if current_user.is_authenticated or email:
+            user = User.query.filter_by(email=email).first()
+            np = form.new_pass.data
+            user.set_password(np)
+            db.session.commit()
+            flash('Your new password is set!', 'success')
+            redirect(url_for('login'))
+        else:
+            flash('New password is not set, something went wrong...', 'danger')
+
+    return render_template('newpassword.html', title='New password', form=form)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -92,7 +132,7 @@ def login():
 
         if not next_page or url_parse(next_page).netloc != '':
             next_page = url_for('index')
-        flash('Successfully logged-in!')
+        flash('Successfully logged-in!', 'success')
         return redirect(next_page)
 
     #  url is parsed with "url_parse" to determine is the netloc component is present
@@ -108,7 +148,7 @@ def post():
         post = Post(body=form.post.data, author=current_user, upvotes=0)
         db.session.add(post)
         db.session.commit()
-        flash(Markup('Your post is now <a href="/" class="alert-link">live</a>!'))
+        flash(Markup('Your post is now <a href="/" class="alert-link">live</a>!', 'success'))
         # flash('Your post is now live!')
         return redirect(url_for('post'))
     return render_template('/post.html', title='Post', form=form)
