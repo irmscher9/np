@@ -81,29 +81,37 @@ def forgot():
     return render_template('forgot.html', title='Forgot password', form=form)
 
 
-@app.route('/recover/<token>')
+@app.route('/recover/<token>', methods=['GET', 'POST'])
 def recovery_password(token):
     try:
         email = confirm_token(token)
-    except:
-        flash('The recovery link is invalid or has expired.', 'danger')
+        user = User.query.filter_by(email=email).first()
 
-    user = User.query.filter_by(email=email).first()
+    except:
+        return 'The recovery link is invalid or has expired.'
 
     if user:
-        # newpass = '321'
-        # user.set_password(newpass)
-        # db.session.commit()
-        # flash('Your new temporary password is "321"', 'success')
-        return redirect(url_for('new_password', email=email))
+        form = NewPassword()
+        if form.validate_on_submit():
+            np = form.new_pass.data
+            user.set_password(np)
+            db.session.commit()
+            flash('Your new password is set!', 'success')
+            return redirect(url_for('login'))
+    else:
+        flash('New password is not set, something went wrong...', 'danger')
+
+    return render_template('newpassword.html', title='New password', form=form)
+
 
 
 @app.route('/profile/newpassword', methods=['GET', 'POST'])
 def new_password():
     form = NewPassword()
     email = request.args.get('email')
-    if form.validate_on_submit():
-        if current_user.is_authenticated or email:
+    if current_user.is_authenticated or email:
+        if form.validate_on_submit():
+
             user = User.query.filter_by(email=email).first()
             np = form.new_pass.data
             user.set_password(np)
@@ -113,7 +121,10 @@ def new_password():
         else:
             flash('New password is not set, something went wrong...', 'danger')
 
-    return render_template('newpassword.html', title='New password', form=form)
+        return render_template('newpassword.html', title='New password', form=form)
+
+    else:
+        return "Access denied!"
 
 
 @app.route('/login', methods=['GET', 'POST'])
