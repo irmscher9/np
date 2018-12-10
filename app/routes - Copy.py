@@ -6,20 +6,9 @@ from flask_login import current_user, login_user, logout_user, login_required
 from app.token import generate_confirmation_token, confirm_token
 from app.email import send_email
 from werkzeug.urls import url_parse
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from alembic import op
-from sqlalchemy import text
 
 
-Session = sessionmaker()
-engine = create_engine\
-    ('postgresql+psycopg2://irmscher:st0ltpuffi@mydb.ckc2ampcxrrz.eu-central-1.rds.amazonaws.com:5432/npdb1')
-Session.configure(bind=engine)
-s = Session()
-
-
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/')
 def index():
     posts = Post.query.order_by(Post.upvotes.desc())
     return render_template('index.html', title='Home', posts=posts)
@@ -170,7 +159,7 @@ def post():
         post = Post(body=form.post.data, author=current_user, upvotes=0)
         db.session.add(post)
         db.session.commit()
-        flash('Your post is now live!', 'success')
+        flash(Markup('Your post is now <a href="/" class="alert-link">live</a>!', 'success'))
         # flash('Your post is now live!')
         return redirect(url_for('post'))
     return render_template('/post.html', title='Post', form=form)
